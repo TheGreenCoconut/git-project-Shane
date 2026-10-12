@@ -4,9 +4,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HexFormat;
-
+import java.util.Scanner;
 
 public class Git {
     public static void init() {
@@ -88,8 +90,6 @@ public class Git {
         }
         indexReader.close();
 
-
-
         if (fileAlreadyIndexed) {
             FileWriter indexWriter = new FileWriter("git/INDEX");
             // for (String line : linesOfIndex) {
@@ -121,8 +121,6 @@ public class Git {
     public static void add(Path FilePath) throws IOException {
         createBlob(FilePath);
     }
-
-
 
     public static String hashSHA1(String input) throws IOException {
         try {
@@ -162,7 +160,6 @@ public class Git {
                     bcontent.append(add);
                 }
             }
-
 
         }
         String content = bcontent.toString().substring(0, bcontent.length() - 1);
@@ -238,7 +235,6 @@ public class Git {
                 String dir = deepestPath.substring(0, last);
                 String tree = createTree(workingList, dir);
 
-
                 int temp = 0;
                 for (int line = workingList.size() - 1; line > -1; line--) {
                     if (workingList.get(line).contains(" " + dir + "/")) {
@@ -246,7 +242,6 @@ public class Git {
                         temp = line;
                     }
                 }
-
 
                 workingList.add(temp, "tree " + tree + " " + dir);
             }
@@ -266,5 +261,34 @@ public class Git {
         return count;
     }
 
+    public static String commit(String author, String message) {
+        StringBuilder fileContents = new StringBuilder();
+        String tree = null, parent = null, date = null;
+        try {
+            tree = createTreeFromIndex();
+            BufferedReader HEAD = new BufferedReader(new FileReader("git/HEAD"));
+            parent = HEAD.readLine(); // TO-DO: handle null with no line
+            HEAD.close();
+            date = LocalDate.now().toString();
+
+            fileContents.append("tree: " + tree + "\nparent: " + parent + "\nauthor: " + author + "\ndate: " + date
+                    + "\nmessage: " + message);
+            String strContents = fileContents.toString();
+            String commitHash = hashSHA1(strContents);
+            FileWriter commitWriter = new FileWriter("git/objects/" + commitHash);
+            commitWriter.write(strContents);
+            commitWriter.close();
+
+            FileWriter headWriter = new FileWriter("git/HEAD", false);
+            headWriter.write(commitHash);
+            headWriter.close();
+
+            return commitHash;
+
+        } catch (Exception e) {
+            return parent;
+        }
+
+    }
 
 }

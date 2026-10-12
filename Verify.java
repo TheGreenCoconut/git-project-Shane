@@ -7,9 +7,9 @@ import java.util.ArrayList;
 
 public class Verify {
     public static void main(String[] args) throws IOException {
-        Git.init();
+        // Git.init();
 
-        Git.createBlob(Path.of("trees-test", "docs", "hello.txt"));
+        Git.createBlob(Path.of("trees-test", "docs", "scratch.txt"));
         // Path e2 = Path.of("asd");
         // Git.createBlob(e2);
         // Path a = Path.of("testfolder/hello");
@@ -23,7 +23,7 @@ public class Verify {
 
         // Git.createTree()
 
-        System.out.println(Git.createTreeFromIndex());
+        System.out.println(Git.commit("Claude", "please work second try too"));
 
     }
 }
