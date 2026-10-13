@@ -3,12 +3,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HexFormat;
-import java.util.Scanner;
 
 public class Git {
     public static void init() {
@@ -23,7 +19,6 @@ public class Git {
             try {
                 INDEX.createNewFile();
             } catch (IOException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
             filesCreated++;
@@ -39,7 +34,6 @@ public class Git {
             try {
                 HEAD.createNewFile();
             } catch (IOException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
             filesCreated++;
@@ -62,10 +56,7 @@ public class Git {
         }
         br.close();
 
-        contentOfFile.delete(contentOfFile.length() - 1, contentOfFile.length()); // PEER-REVIEW:
-                                                                                  // Removed the
-                                                                                  // trailing
-                                                                                  // whitespace
+        contentOfFile.delete(contentOfFile.length() - 1, contentOfFile.length());
 
         String strContentOfFile = contentOfFile.toString();
         String hashOfContents = hashSHA1(strContentOfFile);
@@ -107,7 +98,7 @@ public class Git {
             // the true means that the data is being appended
             Path path = Paths.get(FilePath.toString());
             FileReader frINDEX = new FileReader("git/INDEX");
-            if (frINDEX.read() == -1) { // PEER-REVIEW: Handles trailing whitespace in INDEX
+            if (frINDEX.read() == -1) {
                 fwINDEX.write(hashOfContents + " " + path.toString());
             } else {
                 fwINDEX.write("\n" + hashOfContents + " " + path.toString());
@@ -194,7 +185,6 @@ public class Git {
         boolean done = false;
         while (done == false) {
             for (int i = 0; i < workingList.size(); i++) {
-                String[] parts = workingList.get(i).split(" ");
                 int min = i;
                 for (int j = i + 1; j < workingList.size(); j++) {
                     String[] parts2 = workingList.get(j).split(" ");
@@ -271,8 +261,8 @@ public class Git {
             HEAD.close();
             date = LocalDate.now().toString();
 
-            fileContents.append("tree: " + tree + "\nparent: " + parent + "\nauthor: " + author + "\ndate: " + date
-                    + "\nmessage: " + message);
+            fileContents.append("tree: " + tree + "\nparent: " + parent + "\nauthor: " + author
+                    + "\ndate: " + date + "\nmessage: " + message);
             String strContents = fileContents.toString();
             String commitHash = hashSHA1(strContents);
             FileWriter commitWriter = new FileWriter("git/objects/" + commitHash);
