@@ -251,18 +251,25 @@ public class Git {
         return count;
     }
 
+    // Check README.md
     public static String commit(String author, String message) {
         StringBuilder fileContents = new StringBuilder();
         String tree = null, parent = null, date = null;
         try {
             tree = createTreeFromIndex();
             BufferedReader HEAD = new BufferedReader(new FileReader("git/HEAD"));
-            parent = HEAD.readLine(); // TO-DO: handle null with no line
+            parent = HEAD.readLine();
             HEAD.close();
             date = LocalDate.now().toString();
 
-            fileContents.append("tree: " + tree + "\nparent: " + parent + "\nauthor: " + author
-                    + "\ndate: " + date + "\nmessage: " + message);
+            if (parent == null) { // Handles first commit
+                fileContents.append("tree: " + tree + "\nauthor: " + author
+                        + "\ndate: " + date + "\nmessage: " + message);
+            } else {
+                fileContents.append("tree: " + tree + "\nparent: " + parent + "\nauthor: " + author
+                        + "\ndate: " + date + "\nmessage: " + message);
+            }
+
             String strContents = fileContents.toString();
             String commitHash = hashSHA1(strContents);
             FileWriter commitWriter = new FileWriter("git/objects/" + commitHash);
@@ -279,6 +286,73 @@ public class Git {
             return parent;
         }
 
+    }
+
+    /*
+     * After a clone or a checkout, Git throws the old index away and writes a new
+     * one from a commit's tree. Uses recursiveFileList() to iterate through the
+     * repository's tree and assemble the list of fiels in the index.
+     */
+    public static void regenerateIndex(String commitHash) throws IOException {
+        // BufferedReader HEAD = new BufferedReader(new FileReader("git/HEAD"));
+        // String currHead = HEAD.readLine();
+        // HEAD.close();
+
+        File commitFile = new File("git/objects/" + commitHash);
+        BufferedReader commitReader = new BufferedReader(new FileReader(commitFile));
+        String rootTree = commitReader.readLine().split(" ")[1];
+        commitReader.close();
+
+        File index = new File("git/INDEX");
+        BufferedWriter indexWriter = new BufferedWriter(new FileWriter(index));
+
+        StringBuilder fileList = recursiveFileList(rootTree, "");
+        for (int i = 0; i < fileList.length() - 1; i++) {
+            if (fileList.charAt(i) == '\n' && fileList.charAt(i + 1) == '\n') {
+                fileList.delete(i, i + 2);
+                i--;
+            }
+        }
+        indexWriter.write(fileList.toString());
+        indexWriter.close();
+    }
+
+    /*
+     * Recursively searches for files and returns them as a StringBuilder object for
+     * regenerateIndex() to process. Beginning with the tree hash stored in the
+     * commit, if a line represents a tree, that directory is opened with the same
+     * method. If a line represents a file, that file's hash and path (tracked
+     * through recursive calls) are appended to the StringBuilder and returned.
+     * Note: This method does not clean up white space on its own, regenrateIndex()
+     * handles that.
+     */
+    public static StringBuilder recursiveFileList(String currentTree, String currentPath) throws IOException {
+        StringBuilder index = new StringBuilder();
+        BufferedReader fileReader = new BufferedReader(new FileReader(new File("git/objects/" + currentTree)));
+        String blob;
+        while ((blob = fileReader.readLine()) != null) {
+            String[] lineParts = blob.split(" ");
+
+            if (lineParts[0].equals("tree")) {
+                if (currentPath.equals("")) {
+                    index.append("\n" + recursiveFileList(lineParts[1], lineParts[2]).toString());
+                } else {
+                    index.append("\n" + recursiveFileList(lineParts[1], currentPath + "/" + lineParts[2]).toString());
+                }
+
+            } else if (lineParts[0].equals("blob")) {
+                if (currentPath.equals("")) {
+                    index.append("\n" + lineParts[1] + " " + lineParts[2]);
+                } else {
+                    index.append("\n" + lineParts[1] + " " + currentPath + "/" + lineParts[2]);
+                }
+            } else {
+                System.out.println("Error occured, reached file " + currentPath);
+            }
+        }
+        fileReader.close();
+
+        return index;
     }
 
 }
