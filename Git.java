@@ -307,12 +307,6 @@ public class Git {
         BufferedWriter indexWriter = new BufferedWriter(new FileWriter(index));
 
         StringBuilder fileList = recursiveFileList(rootTree, "");
-        for (int i = 0; i < fileList.length() - 1; i++) {
-            if (fileList.charAt(i) == '\n' && fileList.charAt(i + 1) == '\n') {
-                fileList.delete(i, i + 2);
-                i--;
-            }
-        }
         indexWriter.write(fileList.toString());
         indexWriter.close();
     }
@@ -323,8 +317,6 @@ public class Git {
      * commit, if a line represents a tree, that directory is opened with the same
      * method. If a line represents a file, that file's hash and path (tracked
      * through recursive calls) are appended to the StringBuilder and returned.
-     * Note: This method does not clean up white space on its own, regenrateIndex()
-     * handles that.
      */
     public static StringBuilder recursiveFileList(String currentTree, String currentPath) throws IOException {
         StringBuilder index = new StringBuilder();
@@ -333,26 +325,98 @@ public class Git {
         while ((blob = fileReader.readLine()) != null) {
             String[] lineParts = blob.split(" ");
 
+            String entry;
             if (lineParts[0].equals("tree")) {
                 if (currentPath.equals("")) {
-                    index.append("\n" + recursiveFileList(lineParts[1], lineParts[2]).toString());
+                    entry = recursiveFileList(lineParts[1], lineParts[2]).toString();
                 } else {
-                    index.append("\n" + recursiveFileList(lineParts[1], currentPath + "/" + lineParts[2]).toString());
+                    entry = recursiveFileList(lineParts[1], currentPath + "/" + lineParts[2]).toString();
                 }
 
             } else if (lineParts[0].equals("blob")) {
                 if (currentPath.equals("")) {
-                    index.append("\n" + lineParts[1] + " " + lineParts[2]);
+                    entry = lineParts[1] + " " + lineParts[2];
                 } else {
-                    index.append("\n" + lineParts[1] + " " + currentPath + "/" + lineParts[2]);
+                    entry = lineParts[1] + " " + currentPath + "/" + lineParts[2];
                 }
             } else {
                 System.out.println("Error occured, reached file " + currentPath);
+                continue;
             }
+
+            if (entry.isEmpty()) {
+                continue;
+            }
+            if (index.length() > 0) {
+                index.append("\n");
+            }
+
+            index.append(entry);
         }
         fileReader.close();
 
         return index;
+    }
+
+    public static void checkout(String commitHash) throws IOException {
+        BufferedReader indexDeletionReader = new BufferedReader(new FileReader("git/INDEX"));
+        String indexLine;
+        while ((indexLine = indexDeletionReader.readLine()) != null) {
+            String filePath = indexLine.split(" ")[1];
+            try {
+                File targetFile = new File(filePath);
+                targetFile.delete();
+
+                String[] pathParts = filePath.split("/");
+                File parentDirectory = new File(pathParts[pathParts.length - 2]);
+                parentDirectory.delete();
+
+            } catch (Exception e) {
+            }
+        }
+
+        indexDeletionReader.close();
+
+        regenerateIndex(commitHash);
+
+        BufferedReader indexCreateReader = new BufferedReader(new FileReader("git/INDEX"));
+        while ((indexLine = indexCreateReader.readLine()) != null) {
+            String[] lineParts = indexLine.split(" ");
+            String[] pathParts = lineParts[1].split("/");
+            String workingPath = "";
+            for (int directory = 0; directory < pathParts.length; directory++) {
+                if (workingPath.length() == 0) {
+                    workingPath += pathParts[directory];
+                } else {
+                    workingPath += "/" + pathParts[directory];
+                }
+                File createdFile = new File(workingPath);
+                if (directory < pathParts.length - 1) {
+                    createdFile.mkdir();
+                } else {
+                    createdFile.createNewFile();
+                }
+            }
+
+            StringBuilder fileContents = new StringBuilder();
+            BufferedReader blobReader = new BufferedReader(new FileReader("git/objects/" + lineParts[0]));
+            String blobLine;
+            while ((blobLine = blobReader.readLine()) != null) {
+                fileContents.append(blobLine);
+            }
+            blobReader.close();
+
+            BufferedWriter fileWriter = new BufferedWriter(new FileWriter(lineParts[1]));
+            fileWriter.append(fileContents.toString());
+            fileWriter.close();
+        }
+
+        indexCreateReader.close();
+
+        FileWriter headWriter = new FileWriter("git/HEAD", false);
+        headWriter.write(commitHash);
+        headWriter.close();
+
     }
 
 }
